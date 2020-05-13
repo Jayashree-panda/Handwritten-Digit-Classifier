@@ -7,6 +7,8 @@ from keras.layers import MaxPooling2D
 from keras.layers import Flatten
 from keras.layers import Dense
 from keras.optimizers import SGD
+from sklearn.model_selection import KFold
+from keras import backend as K
 
 def load_dataset():
 	# load dataset
@@ -19,8 +21,6 @@ def load_dataset():
 	testY = np_utils.to_categorical(testY)
 	return trainX, trainY, testX, testY
 
-trainX, trainY, testX, testY = load_dataset()
-	
 # scale pixels
 def prep_pixels(train, test):
 	# convert from integers to floats
@@ -31,8 +31,6 @@ def prep_pixels(train, test):
 	test_norm = test_norm / 255.0
 	# return normalized images
 	return train_norm, test_norm
-	
-prep_pixels(trainX, testX)
 
 # define cnn model
 def define_model():
@@ -46,8 +44,6 @@ def define_model():
 	opt = SGD(lr=0.01, momentum=0.9)
 	model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
 	return model
-
-define_model()
 
 # evaluate a model using k-fold cross-validation
 def evaluate_model(dataX, dataY, n_folds=5):
@@ -69,3 +65,41 @@ def evaluate_model(dataX, dataY, n_folds=5):
 		scores.append(acc)
 		histories.append(history)
 	return scores, histories
+	
+# plot diagnostic learning curves
+def summarize_diagnostics(histories):
+	for i in range(len(histories)):
+		# plot loss
+		pyplot.subplot(2, 1, 1)
+		pyplot.title('Cross Entropy Loss')
+		pyplot.plot(histories[i].history['loss'], color='blue', label='train')
+		pyplot.plot(histories[i].history['val_loss'], color='orange', label='test')
+		# plot accuracy
+		pyplot.subplot(2, 1, 2)
+		pyplot.title('Classification Accuracy')
+		pyplot.plot(histories[i].history['accuracy'], color='blue', label='train')
+		pyplot.plot(histories[i].history['val_accuracy'], color='orange', label='test')
+	pyplot.show()
+    
+# summarize model performance
+def summarize_performance(scores):
+	# print summary
+	print('Accuracy: mean=%.3f std=%.3f, n=%d' % (K.mean(scores)*100, K.std(scores)*100, len(scores)))
+	# box and whisker plots of results
+	pyplot.boxplot(scores)
+	pyplot.show()
+    
+def run_test_harness():
+	# load dataset
+	trainX, trainY, testX, testY = load_dataset()
+	# prepare pixel data
+	trainX, testX = prep_pixels(trainX, testX)
+	# evaluate model
+	scores, histories = evaluate_model(trainX, trainY)
+	# learning curves
+	summarize_diagnostics(histories)
+	# summarize estimated performance
+	summarize_performance(scores)
+    
+# entry point, run the test harness
+run_test_harness()
